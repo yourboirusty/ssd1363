@@ -1,0 +1,30 @@
+[package]
+authors = ["Kornel Koszela <kornel@koszela.me>"]
+categories = ["embedded", "no-std"]
+keywords = ["no-std", "ssd1363", "oled", "embedded", "embedded-hal-driver"]
+license = "MIT"
+readme = "README.md"
+description = "`display-interface` compatible driver for  SSD1363 OLED display controller"
+name = "ssd1363"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-hal = "^ 0.2"
+display-interface = "^ 0.4"
+embedded-graphics-core = { version = "^ 0.4", optional = true }
+
+[features]
+default = ["graphics"]
+graphics = ["embedded-graphics-core"]
+
+[profile.dev]
+codegen-units = 1
+incremental = false
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = true
