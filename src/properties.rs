@@ -9,10 +9,10 @@ pub struct DisplayProperties<DI> {
     iface: DI,
     display_size: DisplaySize,
     display_rotation: DisplayRotation,
-    draw_area_start: (u8, u8),
-    draw_area_end: (u8, u8),
     draw_column: u8,
     draw_row: u8,
+    draw_row_end: u8,
+    draw_column_end: u8,
 }
 
 impl<DI> DisplayProperties<DI>
@@ -29,10 +29,10 @@ where
             iface,
             display_size,
             display_rotation,
-            draw_area_start: (0, 0),
-            draw_area_end: (0, 0),
             draw_column: 0,
             draw_row: 0,
+            draw_column_end: 0,
+            draw_row_end: 0,
         }
     }
 
@@ -56,10 +56,10 @@ where
     /// drawn. This method can be used for changing the affected area on the screen as well
     /// as (re-)setting the start point of the next `draw` call.
     pub fn set_draw_area(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), DisplayError> {
-        self.draw_area_start = start;
-        self.draw_area_end = end;
         self.draw_column = start.0;
         self.draw_row = start.1;
+        self.draw_column_end = end.0;
+        self.draw_row_end = end.1;
 
         self.send_draw_address()
     }
@@ -67,25 +67,22 @@ where
     /// Send the data to the display for drawing at the current position in the framebuffer
     /// and advance the position accordingly. Cf. `set_draw_area` to modify the affected area by
     /// this method.
-    pub fn draw(&mut self, mut buffer: &[u8]) -> Result<(), DisplayError> {
+    pub fn draw(&mut self, buffer: &[u8]) -> Result<(), DisplayError> {
+        let mut iter = buffer.iter().cloned();
+
         Command::StartWrite.send(&mut self.iface)?;
-
-        while !buffer.is_empty() {
-            let count = self.draw_area_end.0 - self.draw_column;
-            self.iface
-                .send_data(DataFormat::U8(&buffer[..count as usize]))?;
-            self.draw_column += count;
-
-            buffer = &buffer[count as usize..];
-        }
-
+        self.iface.send_data(DataFormat::U8Iter(&mut iter))?;
         Command::Noop.send(&mut self.iface)?;
+
         Ok(())
     }
 
     fn send_draw_address(&mut self) -> Result<(), DisplayError> {
-        Command::SetRowAddress(self.draw_row.into(), self.draw_area_end.0.into())
-            .send(&mut self.iface)
+        Command::SetRowAddress(self.draw_row.into(), self.draw_row_end.into())
+            .send(&mut self.iface)?;
+        Command::SetColumnAddress(self.draw_column.into(), self.draw_column_end.into())
+            .send(&mut self.iface)?;
+        Ok(())
     }
 
     /// Get the configured display size
